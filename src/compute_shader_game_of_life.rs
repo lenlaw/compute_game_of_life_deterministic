@@ -56,8 +56,75 @@ pub fn main_gol() {
         .run();
 }
 
+//TODO this doesnt make the black pixels opaque
+//  ie all the balck are alpha 0 whereas in the orginal code they are alpha 255
+fn initial_image_pixels()-> Vec<u8>{
+
+    //const SIZE: (u32, u32) = (1280, 720);
+    let image_size = SIZE.0 * SIZE.1;
+    // 4 channels (R, G, B, A)
+    let mut pixel_data = vec![0u8; image_size as usize * 4]; 
+
+
+    // Create an iterator that repeatedly yields the sequence [0, 0, 0, 255]
+    let sequence = [0u8, 0u8, 0u8, 255u8].iter().cycle();
+
+    // Use zip to combine the iterator with pixel_data and assign the values
+    for (dest, &value) in pixel_data.iter_mut().zip(sequence) {
+        *dest = value;
+    }
+
+
+
+    let grid_size_x = 150; // Adjust this to your desired grid size
+    let grid_size_y = 364; 
+
+    let center_x = SIZE.0 / 2;
+    let center_y = SIZE.1 / 2;
+    let start_x = center_x - grid_size_x / 2;   
+    let start_y = center_y - grid_size_y / 2;
+
+    let end_x = start_x + grid_size_x;
+    let end_y = start_y + grid_size_y;
+
+    for y in start_y..end_y {
+        for x in start_x..end_x {
+            let index = ((y * SIZE.0 + x) * 4) as usize;
+            pixel_data[index] = 255;   // Red channel
+            pixel_data[index + 1] = 255; // Green channel
+            pixel_data[index + 2] = 255; // Blue channel
+            pixel_data[index + 3] = 255; // Alpha channel
+        }
+    }
+
+    pixel_data
+
+}
+
+
+
+
+
 fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
  
+
+   
+    //get a vec<u8> to populate the image pixel field with
+    let pixel_data = initial_image_pixels();
+
+    let mut image = Image::new(
+        Extent3d {
+            width: SIZE.0,
+            height: SIZE.1,
+            depth_or_array_layers: 1,
+        },
+        TextureDimension::D2,
+        pixel_data,
+        TextureFormat::Rgba8Unorm,
+    );
+
+
+ /*
     let mut image = Image::new_fill(
         Extent3d {
             width: SIZE.0,
@@ -68,6 +135,10 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
         &[0, 0, 0, 255],
         TextureFormat::Rgba8Unorm,
     );
+    */
+
+
+
 
     //gpt: the texture usages are apparently binary values ie 0b000010
     // and the | operator combines them bitwise so we might get sommet like
@@ -83,6 +154,8 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     //so the compute shader does the random init (i can see it in the shader now)
     //so it is creating one single image 
     //
+    //TODO is the >>texture here the texture bound to the shader??
+    //
     commands.spawn(SpriteBundle {
         sprite: Sprite {
             custom_size: Some(Vec2::new(SIZE.0 as f32, SIZE.1 as f32)),
@@ -95,6 +168,16 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
 
     commands.insert_resource(GameOfLifeImage(image));
 }
+
+
+
+
+
+
+
+
+
+
 
 pub struct GameOfLifeComputePlugin;
 
@@ -285,15 +368,6 @@ impl render_graph::Node for GameOfLifeNode {
 
         pass.set_bind_group(0, texture_bind_group, &[]);
 
-
-        //the workgroups below the sizes are replicated in the shader code
-        // as 8,8,1
-        //i dunno why just now we have them - are the 1280x720 texels/pixels 
-        // lumped into 8x8 agents in the game? i dont think so having watched
-        //the game - that would be just 150 agents horizontally and it looked more
-        //like the 1280 ..but not totally sure
-        //
-        //
 
 
         // select the pipeline based on the current state

@@ -16,29 +16,56 @@ fn randomFloat(value: u32) -> f32 {
     return f32(hash(value)) / 4294967295.0;
 }
 
-//TODOso i wanna ditch the random init and use a preset GoL init that 
+//so i wanna ditch the random init and use a preset GoL init that 
 //i know has predictable results - that way i can run and rerun and find
 //out if i have a deterministic program
 //
-//TODO i think the best way will be to change the >>texture CPU side
+// i think the best way will be to change the >>texture CPU side
 //and ditch this init entirely - not that this init has its own pipeline 
 //c/pu-side and >>update has its own pipelie - so i can just remove the
 //init pipeline call rust-side
 // 
-//TODO ok so ive just increased the >>alive condition to be larger than 1.0
+// ok so ive just increased the >>alive condition to be larger than 1.0
 //so no new cells will be changed to >>alive
 //i'm assuming that the rest of the texture will remain as it was set cpu-side?
 //
 @compute @workgroup_size(8, 8, 1)
 fn init(@builtin(global_invocation_id) invocation_id: vec3<u32>, @builtin(num_workgroups) num_workgroups: vec3<u32>) {
     
+      /*
     let location = vec2<i32>(i32(invocation_id.x), i32(invocation_id.y));
-
     let randomNumber = randomFloat(invocation_id.y * num_workgroups.x + invocation_id.x);
-    let alive = randomNumber > 1.9;
+    let alive = randomNumber > 0.9;
     let color = vec4<f32>(f32(alive));
+   */
+   
+     
+    let location = vec2<i32>(i32(invocation_id.x), i32(invocation_id.y));   
+    // Use textureLoad to read the color value at the specified location
+    let loaded_color = textureLoad(texture, location);
 
-    textureStore(texture, location, color);
+    // Check if all components of loaded_color are equal to 1.0
+    let isWhite = (loaded_color.r == 1.0) && (loaded_color.g == 1.0) &&
+                  (loaded_color.b == 1.0) && (loaded_color.a == 1.0);
+
+
+    if (isWhite) {        
+        let color = vec4<f32>(f32(true));
+        textureStore(texture, location, color);
+    }else{
+
+        //i went to the trouble of setting the texture elements in the image
+        // to sequences of 0,0,0,255 ...but this line just sets them all
+        // to 0 again including the alpha 
+        //    <<well it works so ill leave it
+        let color = vec4<f32>(f32(false));
+        textureStore(texture, location, color);
+    }
+ 
+    
+  
+
+  
     
 }
 
