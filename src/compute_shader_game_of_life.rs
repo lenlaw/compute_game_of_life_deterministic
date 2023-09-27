@@ -154,9 +154,9 @@ DONE -how to copy one text to the other
 // this is going to need to be like the above and not empty 
 //as it has the initial conditions
 //
-   // let mut image_read  = image_write.clone();
-   let pixel_data_read = initial_image_pixels();
-    let mut image_read = Image::new(
+    let mut image_read  = image_write.clone();
+  // let pixel_data_read = initial_image_pixels();
+/*    let mut image_read = Image::new(
         Extent3d {
             width: SIZE.0,
             height: SIZE.1,
@@ -166,14 +166,12 @@ DONE -how to copy one text to the other
         pixel_data_read,
         TextureFormat::Rgba8Unorm,
     );
-
+*/ 
     //gpt: the texture usages are apparently binary values ie 0b000010
     // and the | operator combines them bitwise so we might get sommet like
     // 0b 000111 of each has just a single 1 in the respective positions
     image_write.texture_descriptor.usage =
-        TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
-   
-
+        TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING; 
     image_read.texture_descriptor.usage =
     TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
 
