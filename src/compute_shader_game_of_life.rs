@@ -126,7 +126,32 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
         TextureFormat::Rgba8Unorm,
     );
 
+/*
 
+TODO- so i want 2 buffers or textures rather than a single one
+- i want one as the working texture tex_working that is written to in a similar way to the original
+        this text will update in a non-deterministic way as the invocations complete
+- i want the invocations to read from a read-tex that is updated at the end of each compute pass
+- and i want a working-tex (write-tex) that is written to by the invocations
+- the write-tex overwrites the static- or rather read-tex 
+
+ISSUE 
+- is another >>image the best option for the extra texture
+        <<or perhaps should i be using a 2D-buffer or something?
+-how to copy one text to the other 
+        <<clone or mutable or sommert else?
+-how to provide the extra buffer to the shaders 
+        <<same way as the existing one
+        <<should i bundle the extra tex in the struct that wraps the Handle to the image
+        <<or should i make a new wrapper struct like the existing one?
+-get clear on how to add the new tex to the binding
+        <<is it thru the bind layout?
+        <<or sommert else?
+-should i use the existing tex as the read-tex or the write-tex?
+        <<remember the existing tex is displayed ie rendered that might be an 
+        expensive thing to change
+        <<but take a look at aht ecodee
+*/
 
 //TODO so i may use this 
  /*
