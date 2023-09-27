@@ -56,7 +56,7 @@ pub fn main_gol() {
         .run();
 }
 
-//TODO this doesnt make the black pixels opaque
+//note this doesnt make the black pixels opaque
 //  ie all the balck are alpha 0 whereas in the orginal code they are alpha 255
 fn initial_image_pixels()-> Vec<u8>{
 
@@ -104,7 +104,10 @@ fn initial_image_pixels()-> Vec<u8>{
 
 
 
-
+//note: ResMut<Assets<Image>> -- images are the assets for rendering to the screen
+//at this point i thin its empty, but we add a handle to an image to the assets
+// in setup
+//
 fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
  
 
@@ -124,6 +127,8 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     );
 
 
+
+//TODO so i may use this 
  /*
     let mut image = Image::new_fill(
         Extent3d {
@@ -137,24 +142,43 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     );
     */
 
-
-
-
     //gpt: the texture usages are apparently binary values ie 0b000010
     // and the | operator combines them bitwise so we might get sommet like
     // 0b 000111 of each has just a single 1 in the respective positions
     image.texture_descriptor.usage =
         TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
+   
+   //Handles are lightweight IDs that refer to a specific asset. You need them to use your assets, 
+   //You can store handles in your entity components or resources.
+   //Handles can refer to not-yet-loaded assets, meaning you can just spawn your entities anyway, 
+   //using the handles, and the assets will just "pop in" when they become ready.
+   /*Certainly, I can explain why images.add(image) returns a Handle<Image> and why it's used in Bevy.
+
+In Bevy, asset management is a crucial part of game development. The images variable you have is of type Assets<Image>, which represents a collection of assets of type Image. In Bevy, assets like textures or images are managed separately from regular collections like arrays or vectors. Instead of directly adding an image to a collection, Bevy uses a system of handles to manage assets efficiently.
+
+Here's how it works:
+
+images.add(image): This method is used to add an image to the asset manager (Assets<Image>). However, it doesn't simply add the image to an array; it returns a Handle<Image> instead.
+
+Handle<Image>: This is a reference or a handle to the image asset stored in the asset manager. It's not the actual image data; it's more like a pointer or a reference to that data.
+
+Why does Bevy use handles instead of directly adding to a collection?
+
+Efficiency: Bevy can perform various optimizations when managing assets using handles. For example, it can efficiently load, unload, and track dependencies between assets.
+
+Safety: Using handles ensures that the lifetime and ownership of assets are managed properly. It prevents issues like dangling references or assets being accidentally modified from multiple places.
+
+So, when you write let image = images.add(image);, you are adding the image to the asset manager and getting a handle to it. This handle (image) allows you to refer to and use the image within your Bevy application while ensuring that Bevy can manage it efficiently and safely behind the scenes.
+
+In summary, the Handle<Image> returned by images.add(image) is a way for Bevy to manage and optimize the loading and use of assets like images in a game or application. It's a design choice made to improve performance and maintain code safety. */
+    //the above comment is expandable
     let image = images.add(image);
 
-    //i think mebe he is using a (1280, 720) and has a boid-sprite in every location
-    //i think the compute goes thru every one of the 1280x720 of them per update
-    //   <<if so where is the random init of them?
-    //No i htink not - i think there is a single sprite and thats the whole (1280, 720) window
-    //so the compute shader does the random init (i can see it in the shader now)
-    //so it is creating one single image 
-    //
-    //TODO is the >>texture here the texture bound to the shader??
+   
+    //is the >>texture here the texture bound to the shader??
+    //      <<i doubt it. This copies the texture to spawn it to the screen it guess
+    // i thik it renders to screen before any shader code has executed
+    // it just shows that preset intial condition for the game
     //
     commands.spawn(SpriteBundle {
         sprite: Sprite {
@@ -166,16 +190,14 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     });
     commands.spawn(Camera2dBundle::default());
 
+    //so here we insert a resource into bevy 
+    //this resource will be extracted from the bevy main world into the render
+    //word below suing ExtractResoure
+    //the resource is a handle to the image 
+    //   
+    //
     commands.insert_resource(GameOfLifeImage(image));
 }
-
-
-
-
-
-
-
-
 
 
 
@@ -185,11 +207,32 @@ impl Plugin for GameOfLifeComputePlugin {
     fn build(&self, app: &mut App) {
         // Extract the game of life image resource from the main world into the render world
         // for operation on by the compute shader and display on the sprite.
+        //        <<theres no reference tho ..how do we use this extracted resource?
+        //
         app.add_plugins(ExtractResourcePlugin::<GameOfLifeImage>::default());
+
+        //so i think here we are getting the render half of the bevy engine 
+        //(as opposed to the world half that owns the resources n stuff)
+        //
         let render_app = app.sub_app_mut(RenderApp);
+
+        //now we add some systems to the Render sub-app
+        // the Render is apparently the main rendering thing for bevy
+        //and we add this bind group thing
+        //
         render_app.add_systems(Render, queue_bind_group.in_set(RenderSet::Queue));
 
+        //so my guess is that the above kinda prepares an empty or default setup of the 
+        //render world that can accept a bind group so i can attach a pipeline n do
+        //rendering stuff??
+        //
+
+        //the render graph is a directed acyclic graph with the nodes dpoing render jobs
+        //and the edges ordering the nodes
+        //
         let mut render_graph = render_app.world.resource_mut::<RenderGraph>();
+
+        //this GameOfLifeNode is defined later
         render_graph.add_node("game_of_life", GameOfLifeNode::default());
         render_graph.add_node_edge(
             "game_of_life",
@@ -203,6 +246,14 @@ impl Plugin for GameOfLifeComputePlugin {
     }
 }
 
+
+/*I understand your confusion. The struct GameOfLifeImage(Handle<Image>); declaration 
+is actually defining a newtype in Rust.
+
+In Rust, a newtype is a pattern where you create a new type that wraps an existing type.
+ It's a way to add additional type safety and clarity to your code without incurring any runtime overhead. 
+ It's often used when you want to distinguish between two types that have the same underlying representation
+  but represent different concepts in your program. */
 #[derive(Resource, Clone, Deref, ExtractResource)]
 struct GameOfLifeImage(Handle<Image>);
 
@@ -225,6 +276,12 @@ fn queue_bind_group(
             resource: BindingResource::TextureView(&view.texture_view),
         }],
     });
+
+    //ok so later in the Node update theres a reference to resource Assets, but no reference to the 
+    //image to be rendered but we see above that the image is inserted into the bind_group
+    //and the bind group is added as a resource
+    //this and any other resources are i guess supplied to the node during the render auto
+    // in the Asset server
     commands.insert_resource(GameOfLifeImageBindGroup(bind_group));
 }
 
@@ -310,6 +367,11 @@ impl Default for GameOfLifeNode {
 //the render graph for the render half of bevy
 //theres a world half and  render half and they are separate apparently
 //
+//we are implementing a render node -- thats a render job in the render graph
+//this node will render the image teture i guess
+//i expect its >>update fn is called auto by bevy on bevy's update
+//it then checks the gamess state to decide what to do
+//
 impl render_graph::Node for GameOfLifeNode {
 
     //nodes have this update trait and we implment it here
@@ -319,7 +381,13 @@ impl render_graph::Node for GameOfLifeNode {
         //see these are used in the checks below to first call the init shader
         //and if its finsihed call the update shader
         //
+        //so these are world resources as opposed to render resource it seems
+        //
         let pipeline = world.resource::<GameOfLifePipeline>();
+
+        // The cache stores existing render and compute pipelines allocated on the GPU, as well as
+        //  pending creation. Pipelines inserted into the cache are identified by a unique ID, which
+        //  can be used to retrieve the actual GPU object once it's ready.
         let pipeline_cache = world.resource::<PipelineCache>();
 
         // if the corresponding pipeline has loaded, transition to the next stage
@@ -332,13 +400,6 @@ impl render_graph::Node for GameOfLifeNode {
                 }
             }
 
-            //TODO so this calls the the >>init shader somehow??
-            // checks to see if that shader has fiished and if so it calls the 
-            // update shader which takes overs
-            // <<so i could just chnage the >>init in the compute shader for now
-            //   (mebe just empty it) rather than change this code - so that i can 
-            //    have an init ready for when i need one later
-            //
             GameOfLifeState::Init => {
                 if let CachedPipelineState::Ok(_) =
                     pipeline_cache.get_compute_pipeline_state(pipeline.update_pipeline)
