@@ -65,16 +65,12 @@ fn initial_image_pixels()-> Vec<u8>{
     // 4 channels (R, G, B, A)
     let mut pixel_data = vec![0u8; image_size as usize * 4]; 
 
-
     // Create an iterator that repeatedly yields the sequence [0, 0, 0, 255]
     let sequence = [0u8, 0u8, 0u8, 255u8].iter().cycle();
-
     // Use zip to combine the iterator with pixel_data and assign the values
     for (dest, &value) in pixel_data.iter_mut().zip(sequence) {
         *dest = value;
     }
-
-
 
     let grid_size_x = 150; // Adjust this to your desired grid size
     let grid_size_y = 364; 
@@ -115,7 +111,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     //get a vec<u8> to populate the image pixel field with
     let pixel_data = initial_image_pixels();
 
-    let mut image = Image::new(
+    let mut image_write = Image::new(
         Extent3d {
             width: SIZE.0,
             height: SIZE.1,
@@ -136,9 +132,9 @@ TODO- so i want 2 buffers or textures rather than a single one
 - the write-tex overwrites the static- or rather read-tex 
 
 ISSUE 
-- is another >>image the best option for the extra texture
+DONE mebe - is another >>image the best option for the extra texture
         <<or perhaps should i be using a 2D-buffer or something?
--how to copy one text to the other 
+DONE -how to copy one text to the other 
         <<clone or mutable or sommert else?
 -how to provide the extra buffer to the shaders 
         <<same way as the existing one
@@ -153,24 +149,17 @@ ISSUE
         <<but take a look at aht ecodee
 */
 
-//TODO so i may use this 
- /*
-    let mut image = Image::new_fill(
-        Extent3d {
-            width: SIZE.0,
-            height: SIZE.1,
-            depth_or_array_layers: 1,
-        },
-        TextureDimension::D2,
-        &[0, 0, 0, 255],
-        TextureFormat::Rgba8Unorm,
-    );
-    */
+//DONE  let mut image_read
+//so perhaps better to duplicate the simage created above espaecially since
+// this is going to need to be like the above and not empty 
+//as it has the initial conditions
+    let mut image_read  = image_write.clone();
+   
 
     //gpt: the texture usages are apparently binary values ie 0b000010
     // and the | operator combines them bitwise so we might get sommet like
     // 0b 000111 of each has just a single 1 in the respective positions
-    image.texture_descriptor.usage =
+    image_write.texture_descriptor.usage =
         TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
    
    //Handles are lightweight IDs that refer to a specific asset. You need them to use your assets, 
@@ -197,8 +186,8 @@ So, when you write let image = images.add(image);, you are adding the image to t
 
 In summary, the Handle<Image> returned by images.add(image) is a way for Bevy to manage and optimize the loading and use of assets like images in a game or application. It's a design choice made to improve performance and maintain code safety. */
     //the above comment is expandable
-    let image = images.add(image);
-
+    let image_write = images.add(image_write);
+    let image_read = images.add(image_read);
    
     //is the >>texture here the texture bound to the shader??
     //      <<i doubt it. This copies the texture to spawn it to the screen it guess
@@ -210,7 +199,7 @@ In summary, the Handle<Image> returned by images.add(image) is a way for Bevy to
             custom_size: Some(Vec2::new(SIZE.0 as f32, SIZE.1 as f32)),
             ..default()
         },
-        texture: image.clone(),
+        texture: image_write.clone(),
         ..default()
     });
     commands.spawn(Camera2dBundle::default());
@@ -221,7 +210,8 @@ In summary, the Handle<Image> returned by images.add(image) is a way for Bevy to
     //the resource is a handle to the image 
     //   
     //
-    commands.insert_resource(GameOfLifeImage(image));
+    commands.insert_resource(GameOfLifeImageWrite(image_write));
+    commands.insert_resource(GameOfLifeImageRead(image_read));
 }
 
 
@@ -234,7 +224,7 @@ impl Plugin for GameOfLifeComputePlugin {
         // for operation on by the compute shader and display on the sprite.
         //        <<theres no reference tho ..how do we use this extracted resource?
         //
-        app.add_plugins(ExtractResourcePlugin::<GameOfLifeImage>::default());
+        app.add_plugins(ExtractResourcePlugin::<GameOfLifeImageWrite>::default());
 
         //so i think here we are getting the render half of the bevy engine 
         //(as opposed to the world half that owns the resources n stuff)
@@ -280,7 +270,12 @@ In Rust, a newtype is a pattern where you create a new type that wraps an existi
  It's often used when you want to distinguish between two types that have the same underlying representation
   but represent different concepts in your program. */
 #[derive(Resource, Clone, Deref, ExtractResource)]
-struct GameOfLifeImage(Handle<Image>);
+struct GameOfLifeImageWrite(Handle<Image>);
+
+#[derive(Resource, Clone, Deref, ExtractResource)]
+struct GameOfLifeImageRead(Handle<Image>);
+
+
 
 #[derive(Resource)]
 struct GameOfLifeImageBindGroup(BindGroup);
@@ -289,7 +284,7 @@ fn queue_bind_group(
     mut commands: Commands,
     pipeline: Res<GameOfLifePipeline>,
     gpu_images: Res<RenderAssets<Image>>,
-    game_of_life_image: Res<GameOfLifeImage>,
+    game_of_life_image: Res<GameOfLifeImageWrite>,
     render_device: Res<RenderDevice>,
 ) {
     let view = &gpu_images[&game_of_life_image.0];
