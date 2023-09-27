@@ -325,9 +325,14 @@ fn queue_bind_group(
     let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
         label: None,
         layout: &pipeline.texture_bind_group_layout,
-        entries: &[BindGroupEntry {
-            binding: 0,
-            resource: BindingResource::TextureView(&view_write.texture_view),
+        entries: &[
+            BindGroupEntry {
+                binding: 0,
+                resource: BindingResource::TextureView(&view_write.texture_view)},
+            BindGroupEntry {
+                binding: 1, // Use the appropriate binding index
+                resource: BindingResource::TextureView(&view_read.texture_view),
+            
         }],
     });
 
@@ -365,8 +370,23 @@ impl FromWorld for GameOfLifePipeline {
                             view_dimension: TextureViewDimension::D2,
                         },
                         count: None,
-                    }],
+                    },
+                    BindGroupLayoutEntry {
+                        binding: 1, // Use the appropriate binding index
+                        visibility: ShaderStages::COMPUTE,
+                        ty: BindingType::StorageTexture {
+                            access: StorageTextureAccess::ReadWrite,
+                            format: TextureFormat::Rgba8Unorm,
+                            view_dimension: TextureViewDimension::D2,
+                        },
+                        count: None,
+                    },                 
+                    
+                    
+                    ],
                 });
+
+
         let shader = world
             .resource::<AssetServer>()
             .load("shaders/game_of_life.wgsl");
