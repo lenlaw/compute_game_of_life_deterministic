@@ -1,5 +1,5 @@
 @group(0) @binding(0)
-var texture: texture_storage_2d<rgba8unorm, read_write>;
+var texture_write: texture_storage_2d<rgba8unorm, read_write>;
 
 @group(0) @binding(1)
 var texture_read: texture_storage_2d<rgba8unorm, read_write>;
@@ -45,7 +45,7 @@ fn init(@builtin(global_invocation_id) invocation_id: vec3<u32>, @builtin(num_wo
      
     let location = vec2<i32>(i32(invocation_id.x), i32(invocation_id.y));   
     // Use textureLoad to read the color value at the specified location
-    let loaded_color = textureLoad(texture, location);
+    let loaded_color = textureLoad(texture_write, location);
 
     // Check if all components of loaded_color are equal to 1.0
     let isWhite = (loaded_color.r == 1.0) && (loaded_color.g == 1.0) &&
@@ -54,7 +54,7 @@ fn init(@builtin(global_invocation_id) invocation_id: vec3<u32>, @builtin(num_wo
 
     if (isWhite) {        
         let color = vec4<f32>(f32(true));
-        textureStore(texture, location, color);
+        textureStore(texture_write, location, color);
     }else{
 
         //i went to the trouble of setting the texture elements in the image
@@ -62,7 +62,7 @@ fn init(@builtin(global_invocation_id) invocation_id: vec3<u32>, @builtin(num_wo
         // to 0 again including the alpha 
         //    <<well it works so ill leave it
         let color = vec4<f32>(f32(false));
-        textureStore(texture, location, color);
+        textureStore(texture_write, location, color);
     }
  
     
@@ -78,7 +78,7 @@ fn init(@builtin(global_invocation_id) invocation_id: vec3<u32>, @builtin(num_wo
 //different here wthis texture thing
 //
 fn is_alive(location: vec2<i32>, offset_x: i32, offset_y: i32) -> i32 {
-    let value: vec4<f32> = textureLoad(texture, location + vec2<i32>(offset_x, offset_y));
+    let value: vec4<f32> = textureLoad(texture_write, location + vec2<i32>(offset_x, offset_y));
     return i32(value.x);
 }
 
@@ -112,5 +112,5 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
 
     storageBarrier();
 
-    textureStore(texture, location, color);
+    textureStore(texture_write, location, color);
 }
