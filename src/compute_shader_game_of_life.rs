@@ -3,23 +3,6 @@
 //! Compute shaders use the GPU for computing arbitrary information, that may be independent of what
 //! is rendered to the screen.
 
-//gh this has loads of code i really dont have a hope with
-//i could build on top of it i guess
-//or perhaps reimplement it using that bevy_app_compute crate??
-//     <<looks better now
-//      altho i dont know if i can make it deterministic as-is easily
-//      the fact eveything is done to a texture in a single compute shader makes
-//       it tough i think to be determinsitic in the game
-//      altho i think it could be done perhaps with 2 passes of 2 compute or something
-//       im thinking one pass to read the urrent stte of the board for each invocation
-//       (perhaps copying the texture into a buffer or another texture so that updates
-//        to the rendered textures don't change the state of the game world as each 
-//        invocation runs- that may be the best approach)(the other approach i thot
-//         was to have a pass that --hmm this only works for cpu based game - it would 
-//        have a system order wher the first system read the current gae world state
-//         and the sencond update system only ran afterward)
-
-
 
 use bevy::{
     prelude::*,
@@ -136,17 +119,27 @@ DONE mebe - is another >>image the best option for the extra texture
         <<or perhaps should i be using a 2D-buffer or something?
 DONE -how to copy one text to the other 
         <<clone or mutable or sommert else?
--how to provide the extra buffer to the shaders 
+DONE -how to provide the extra buffer to the shaders 
         <<same way as the existing one
         <<should i bundle the extra tex in the struct that wraps the Handle to the image
         <<or should i make a new wrapper struct like the existing one?
--get clear on how to add the new tex to the binding
+DONE -get clear on how to add the new tex to the binding
         <<is it thru the bind layout?
         <<or sommert else?
 -should i use the existing tex as the read-tex or the write-tex?
         <<remember the existing tex is displayed ie rendered that might be an 
         expensive thing to change
         <<but take a look at aht ecodee
+
+ACTIVE
+- whats the data flow for the new tex?
+- I want the shader to read the read buffer and write to the write buffer 
+- then at the end of the pass i want to copy the write buffer to the read buffer
+-that copy will have to be cpu-side i think
+-so where do i do that cop op?
+      <<after the compute pass and before the render pass i guess
+
+
 */
 
 //DONE  let mut image_read
@@ -155,18 +148,7 @@ DONE -how to copy one text to the other
 //as it has the initial conditions
 //
     let mut image_read  = image_write.clone();
-  // let pixel_data_read = initial_image_pixels();
-/*    let mut image_read = Image::new(
-        Extent3d {
-            width: SIZE.0,
-            height: SIZE.1,
-            depth_or_array_layers: 1,
-        },
-        TextureDimension::D2,
-        pixel_data_read,
-        TextureFormat::Rgba8Unorm,
-    );
-*/ 
+  
     //gpt: the texture usages are apparently binary values ie 0b000010
     // and the | operator combines them bitwise so we might get sommet like
     // 0b 000111 of each has just a single 1 in the respective positions
@@ -295,16 +277,16 @@ In Rust, a newtype is a pattern where you create a new type that wraps an existi
  It's a way to add additional type safety and clarity to your code without incurring any runtime overhead. 
  It's often used when you want to distinguish between two types that have the same underlying representation
   but represent different concepts in your program. */
+  //
+  //In my case something else it does is allow us to wrap it in a type that has
+  //the Resource, Clone, Deref, ExtractResource) functions auto implemented for us
+  //using the attribute >>#derive - and we need those functions in this codebase
+  //
 #[derive(Resource, Clone, Deref, ExtractResource)]
 struct GameOfLifeImageWrite(Handle<Image>);
 
 #[derive(Resource, Clone, Deref, ExtractResource)]
 struct GameOfLifeImageRead(Handle<Image>);
-
-/*
- panicked at 'Resource requested by gol_compute::compute_shader_game_of_life::queue_bind_group 
-              does not exist: gol_compute::compute_shader_game_of_life::GameOfLifeImageRead'
-*/
 
 #[derive(Resource)]
 struct GameOfLifeImageBindGroup(BindGroup);
@@ -438,6 +420,27 @@ impl Default for GameOfLifeNode {
     }
 }
 
+
+/*update Function:
+
+The update function you've implemented for GameOfLifeNode is part of the Bevy ECS control flow.
+It is called during the ECS update loop, just like other Bevy systems.
+Bevy's ECS update loop typically runs at a fixed time step (e.g., 60 times per second), and the update function for your custom node is called within this loop.
+You use the update function to update the state of your GameOfLifeNode and perform any game logic related to it.
+This function is where you should put logic that needs to update regularly, such as simulating the Game of Life itself.
+run Function:
+
+The run function is part of Bevy's rendering control flow, specifically the render graph.
+It is not called within the ECS update loop; instead, it's called as part of the rendering process.
+The run function is called for each node in the render graph in the order defined by the graph.
+In your case, the GameOfLifeNode represents a node in the render graph.
+The purpose of the run function is to perform rendering-related tasks, such as rendering objects or post-processing effects.
+It allows you to integrate custom rendering logic into Bevy's rendering pipeline.
+In summary, the update function is part of the ECS update loop and is called regularly for game logic, while the run function is part of Bevy's render graph and is called as part of the rendering process. These two functions serve different purposes and run in different control flows within Bevy.
+
+ */
+
+
 //the render graph for the render half of bevy
 //theres a world half and  render half and they are separate apparently
 //
@@ -452,6 +455,12 @@ impl render_graph::Node for GameOfLifeNode {
     //
     fn update(&mut self, world: &mut World) {
 
+
+
+        let game_of_life_image_write = world.resource::<GameOfLifeImageWrite>().0.clone();  
+        world.insert_resource(GameOfLifeImageRead(game_of_life_image_write));
+
+
         //see these are used in the checks below to first call the init shader
         //and if its finsihed call the update shader
         //
@@ -463,6 +472,51 @@ impl render_graph::Node for GameOfLifeNode {
         //  pending creation. Pipelines inserted into the cache are identified by a unique ID, which
         //  can be used to retrieve the actual GPU object once it's ready.
         let pipeline_cache = world.resource::<PipelineCache>();
+
+     
+/*     
+     //  let game_of_life_image_write = world.resource::<GameOfLifeImageWrite>().0.clone();  
+      //  world.insert_resource(GameOfLifeImageRead(game_of_life_image_write));
+
+       // let game_of_life_image_read = *game_of_life_image_write; // Dereference to get the Handle directly
+      //  world.insert_resource(GameOfLifeImageRead(game_of_life_image_write));
+
+  //let gpu_images = &world.resource::<RenderAssets<Image>>();
+       // let game_of_life_image_write = &world.resource::<GameOfLifeImageWrite>();
+        //let game_of_life_image_read = &world.get_resource_mut::<GameOfLifeImageRead>();
+  //let game_of_life_image_read = &world.resource::<GameOfLifeImageRead>().0;
+ //  world.get_resource_or_insert_with( ||GameOfLifeImageRead(*game_of_life_image_write));
+
+        //let image_write = &gpu_images[&game_of_life_image_write.0];
+        //let image_write = gpu_images.get(&game_of_life_image_write.0).unwrap();    
+
+       // let image_write_texture = image_write.texture;
+       //commands.insert_resource(GameOfLifeImageRead(image_write));
+
+  //  let images = world.resource::<Assets<Image>>();
+     //  let image_write = images.get(&game_of_life_image_write).unwrap();
+     //  let image_write_clone = image_write.clone();
+    //   let image_write_h = images.add(image_write_clone);
+      //  let image_write_clone = image_write.clone();
+      //  let image_read = &gpu_images[&game_of_life_image_read.0];
+
+       // let image_read_handle =  &gpu_images[&game_of_life_image_read];
+
+       // use bevy::render::render_resource::TextureView as bevyTex;  
+        //let image_write_texture_view:  bevyTex = *image_write.texture_view as bevyTex;
+       // let image_write_texture_view:  bevyTex = *image_write.texture_view ;
+
+       // use bevy_render::render_resource::Texture::TextureView;   
+       // let image_write_texture_view: TextureView = *image_write_texture_view ;    
+
+        //let image_read = &gpu_images[&game_of_life_image_read.0];
+        //let view_read_clone = image_read.clone();
+      //  let mut view_read_clone_texture_view = view_read_clone.texture_view; 
+     //   view_read_clone_texture_view = image_write_texture_view;
+
+ */
+
+
 
         // if the corresponding pipeline has loaded, transition to the next stage
         match self.state {
@@ -481,6 +535,7 @@ impl render_graph::Node for GameOfLifeNode {
                     self.state = GameOfLifeState::Update;
                 }
             }
+
             GameOfLifeState::Update => {}
         }
     }
@@ -493,9 +548,11 @@ impl render_graph::Node for GameOfLifeNode {
         render_context: &mut RenderContext,
         world: &World,
     ) -> Result<(), render_graph::NodeRunError> {
+
         let texture_bind_group = &world.resource::<GameOfLifeImageBindGroup>().0;
         let pipeline_cache = world.resource::<PipelineCache>();
         let pipeline = world.resource::<GameOfLifePipeline>();
+    
 
         let mut pass = render_context
             .command_encoder()
@@ -525,5 +582,9 @@ impl render_graph::Node for GameOfLifeNode {
         }
 
         Ok(())
+
+
+
+
     }
 }

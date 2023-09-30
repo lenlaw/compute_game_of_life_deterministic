@@ -19,18 +19,7 @@ fn randomFloat(value: u32) -> f32 {
     return f32(hash(value)) / 4294967295.0;
 }
 
-//so i wanna ditch the random init and use a preset GoL init that 
-//i know has predictable results - that way i can run and rerun and find
-//out if i have a deterministic program
-//
-// i think the best way will be to change the >>texture CPU side
-//and ditch this init entirely - not that this init has its own pipeline 
-//c/pu-side and >>update has its own pipelie - so i can just remove the
-//init pipeline call rust-side
-// 
-// ok so ive just increased the >>alive condition to be larger than 1.0
-//so no new cells will be changed to >>alive
-//i'm assuming that the rest of the texture will remain as it was set cpu-side?
+
 //
 @compute @workgroup_size(8, 8, 1)
 fn init(@builtin(global_invocation_id) invocation_id: vec3<u32>, @builtin(num_workgroups) num_workgroups: vec3<u32>) {
@@ -41,8 +30,7 @@ fn init(@builtin(global_invocation_id) invocation_id: vec3<u32>, @builtin(num_wo
     let alive = randomNumber > 0.9;
     let color = vec4<f32>(f32(alive));
    */
-   
-     
+        
     let location = vec2<i32>(i32(invocation_id.x), i32(invocation_id.y));   
     // Use textureLoad to read the color value at the specified location
     let loaded_color = textureLoad(texture_write, location);
@@ -72,10 +60,6 @@ fn init(@builtin(global_invocation_id) invocation_id: vec3<u32>, @builtin(num_wo
     
 }
 
-//ok so here we are loading in a location from the texture which is i thnk the image
-//  this seems like it should be incorrrect to me since i thot we could get data from 
-// outside the workgroup of the current invocaton_id, but we must be doin sommert
-//different here wthis texture thing
 //
 fn is_alive(location: vec2<i32>, offset_x: i32, offset_y: i32) -> i32 {
     let value: vec4<f32> = textureLoad(texture_write, location + vec2<i32>(offset_x, offset_y));
