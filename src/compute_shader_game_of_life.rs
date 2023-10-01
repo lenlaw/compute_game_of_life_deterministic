@@ -113,39 +113,9 @@ TODO- so i want 2 buffers or textures rather than a single one
 - i want the invocations to read from a read-tex that is updated at the end of each compute pass
 - and i want a working-tex (write-tex) that is written to by the invocations
 - the write-tex overwrites the static- or rather read-tex 
-
-ISSUE 
-DONE mebe - is another >>image the best option for the extra texture
-        <<or perhaps should i be using a 2D-buffer or something?
-DONE -how to copy one text to the other 
-        <<clone or mutable or sommert else?
-DONE -how to provide the extra buffer to the shaders 
-        <<same way as the existing one
-        <<should i bundle the extra tex in the struct that wraps the Handle to the image
-        <<or should i make a new wrapper struct like the existing one?
-DONE -get clear on how to add the new tex to the binding
-        <<is it thru the bind layout?
-        <<or sommert else?
--should i use the existing tex as the read-tex or the write-tex?
-        <<remember the existing tex is displayed ie rendered that might be an 
-        expensive thing to change
-        <<but take a look at aht ecodee
-
-ACTIVE
-- whats the data flow for the new tex?
-- I want the shader to read the read buffer and write to the write buffer 
-- then at the end of the pass i want to copy the write buffer to the read buffer
--that copy will have to be cpu-side i think
--so where do i do that cop op?
-      <<after the compute pass and before the render pass i guess
-
-
 */
 
-//DONE  let mut image_read
-//so perhaps better to duplicate the simage created above espaecially since
-// this is going to need to be like the above and not empty 
-//as it has the initial conditions
+
 //
     let mut image_read  = image_write.clone();
   
@@ -158,40 +128,6 @@ ACTIVE
     TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
 
 
-   //Handles are lightweight IDs that refer to a specific asset. You need them to use your assets, 
-   //You can store handles in your entity components or resources.
-   //Handles can refer to not-yet-loaded assets, meaning you can just spawn your entities anyway, 
-   //using the handles, and the assets will just "pop in" when they become ready.
-   /*Certainly, I can explain why images.add(image) returns a Handle<Image> and why it's used in Bevy.
-
-In Bevy, asset management is a crucial part of game development. The images variable you have is of type Assets<Image>,
- which represents a collection of assets of type Image. In Bevy, assets like textures or images are managed separately 
- from regular collections like arrays or vectors. Instead of directly adding an image to a collection,
-  Bevy uses a system of handles to manage assets efficiently.
-
-Here's how it works:
-
-images.add(image): This method is used to add an image to the asset manager (Assets<Image>). 
-However, it doesn't simply add the image to an array; it returns a Handle<Image> instead.
-
-Handle<Image>: This is a reference or a handle to the image asset stored in the asset manager.
- It's not the actual image data; it's more like a pointer or a reference to that data.
-
-Why does Bevy use handles instead of directly adding to a collection?
-
-Efficiency: Bevy can perform various optimizations when managing assets using handles.
- For example, it can efficiently load, unload, and track dependencies between assets.
-
-Safety: Using handles ensures that the lifetime and ownership of assets are managed properly.
- It prevents issues like dangling references or assets being accidentally modified from multiple places.
-
-So, when you write let image = images.add(image);, you are adding the image to the asset manager and getting a handle to it. 
-This handle (image) allows you to refer to and use the image within your Bevy application 
-while ensuring that Bevy can manage it efficiently and safely behind the scenes.
-
-In summary, the Handle<Image> returned by images.add(image) is a way for Bevy to 
-manage and optimize the loading and use of assets like images in a game or application.
- It's a design choice made to improve performance and maintain code safety. */
 
     //the above comment is expandable
     let image_write = images.add(image_write);
@@ -234,6 +170,14 @@ impl Plugin for GameOfLifeComputePlugin {
         //
         app.add_plugins(ExtractResourcePlugin::<GameOfLifeImageWrite>::default());
         app.add_plugins(ExtractResourcePlugin::<GameOfLifeImageRead>::default());
+       
+    }
+
+
+
+    fn finish(&self, app: &mut App) {
+
+
         //so i think here we are getting the render half of the bevy engine 
         //(as opposed to the world half that owns the resources n stuff)
         //
@@ -243,7 +187,12 @@ impl Plugin for GameOfLifeComputePlugin {
         // the Render is apparently the main rendering thing for bevy
         //and we add this bind group thing
         //
-        render_app.add_systems(Render, queue_bind_group.in_set(RenderSet::Queue));
+        //queue_bind_group.in_set(RenderSet::Queue);
+       // render_app.add_systems(, queue_bind_group.in_set(RenderSet::Queue));
+      //  render_app.add_systems(Render, queue_bind_group.in_set(RenderSet::Queue));
+        render_app.add_systems(Render, queue_bind_group.in_set(RenderSet::Prepare));
+       // render_app.add_systems(Startup, queue_bind_group.in_set(RenderSet::Queue));
+      
 
         //so my guess is that the above kinda prepares an empty or default setup of the 
         //render world that can accept a bind group so i can attach a pipeline n do
@@ -261,9 +210,7 @@ impl Plugin for GameOfLifeComputePlugin {
             "game_of_life",
             bevy::render::main_graph::node::CAMERA_DRIVER,
         );
-    }
 
-    fn finish(&self, app: &mut App) {
         let render_app = app.sub_app_mut(RenderApp);
         render_app.init_resource::<GameOfLifePipeline>();
     }
@@ -278,7 +225,7 @@ In Rust, a newtype is a pattern where you create a new type that wraps an existi
  It's often used when you want to distinguish between two types that have the same underlying representation
   but represent different concepts in your program. */
   //
-  //In my case something else it does is allow us to wrap it in a type that has
+  //In my case something else as well it does is allow us to wrap it in a type that has
   //the Resource, Clone, Deref, ExtractResource) functions auto implemented for us
   //using the attribute >>#derive - and we need those functions in this codebase
   //
@@ -318,11 +265,6 @@ fn queue_bind_group(
         }],
     });
 
-    //ok so later in the Node update theres a reference to resource Assets, but no reference to the 
-    //image to be rendered but we see above that the image is inserted into the bind_group
-    //and the bind group is added as a resource
-    //this and any other resources are i guess supplied to the node during the render auto
-    // in the Asset server
     commands.insert_resource(GameOfLifeImageBindGroup(bind_group));
 }
 
