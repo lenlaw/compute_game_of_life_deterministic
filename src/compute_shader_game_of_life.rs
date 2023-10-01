@@ -87,13 +87,9 @@ fn initial_image_pixels()-> Vec<u8>{
 //at this point i thin its empty, but we add a handle to an image to the assets
 // in setup
 //
-fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
- 
-
-   
+fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {   
     //get a vec<u8> to populate the image pixel field with
     let pixel_data_write = initial_image_pixels();
-
     let mut image_write = Image::new(
         Extent3d {
             width: SIZE.0,
@@ -105,18 +101,6 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
         TextureFormat::Rgba8Unorm,
     );
 
-/*
-
-TODO- so i want 2 buffers or textures rather than a single one
-- i want one as the working texture tex_working that is written to in a similar way to the original
-        this text will update in a non-deterministic way as the invocations complete
-- i want the invocations to read from a read-tex that is updated at the end of each compute pass
-- and i want a working-tex (write-tex) that is written to by the invocations
-- the write-tex overwrites the static- or rather read-tex 
-*/
-
-
-//
     let mut image_read  = image_write.clone();
   
     //gpt: the texture usages are apparently binary values ie 0b000010
@@ -127,9 +111,6 @@ TODO- so i want 2 buffers or textures rather than a single one
     image_read.texture_descriptor.usage =
     TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
 
-
-
-    //the above comment is expandable
     let image_write = images.add(image_write);
     let image_read = images.add(image_read);
    
@@ -243,13 +224,24 @@ fn queue_bind_group(
     pipeline: Res<GameOfLifePipeline>,
     gpu_images: Res<RenderAssets<Image>>,
     game_of_life_image_write: Res<GameOfLifeImageWrite>,
-    game_of_life_image_read: Res<GameOfLifeImageRead>,
+  //  game_of_life_image_read: Res<GameOfLifeImageRead>,
     render_device: Res<RenderDevice>,
 ) {
+    let view_write = &gpu_images[&game_of_life_image_write.0];
+   // let view_read = &gpu_images[&game_of_life_image_read.0];
 
+
+    let view_write_texture_view = &view_write.texture_view;
+    //view_read.texture_view = *view_write_data;
 
     let view_write = &gpu_images[&game_of_life_image_write.0];
-    let view_read = &gpu_images[&game_of_life_image_read.0];
+
+    // Create a mutable copy of view_read's texture view
+    //let mut view_read_texture_view = view_read.texture_view.clone();
+
+    // Now, you can modify view_read_texture as needed
+    // For example, you can assign it the value of view_write_texture
+    let view_read_texture_view = view_write_texture_view.clone();
 
     let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
         label: None,
@@ -260,10 +252,13 @@ fn queue_bind_group(
                 resource: BindingResource::TextureView(&view_write.texture_view)},
             BindGroupEntry {
                 binding: 1, // Use the appropriate binding index
-                resource: BindingResource::TextureView(&view_read.texture_view),
+                resource: BindingResource::TextureView(&view_read_texture_view),
             
         }],
     });
+
+
+   // game_of_life_image_read.0 = gpu_images.add(Image::new(view_read_texture));
 
     commands.insert_resource(GameOfLifeImageBindGroup(bind_group));
 }
@@ -397,11 +392,8 @@ impl render_graph::Node for GameOfLifeNode {
     //
     fn update(&mut self, world: &mut World) {
 
-
-
-        let game_of_life_image_write = world.resource::<GameOfLifeImageWrite>().0.clone();  
-        world.insert_resource(GameOfLifeImageRead(game_of_life_image_write));
-
+       // let game_of_life_image_write = world.resource::<GameOfLifeImageWrite>().0.clone();  
+      //  world.insert_resource(GameOfLifeImageRead(game_of_life_image_write));
 
         //see these are used in the checks below to first call the init shader
         //and if its finsihed call the update shader
@@ -458,8 +450,6 @@ impl render_graph::Node for GameOfLifeNode {
 
  */
 
-
-
         // if the corresponding pipeline has loaded, transition to the next stage
         match self.state {
             GameOfLifeState::Loading => {
@@ -493,8 +483,11 @@ impl render_graph::Node for GameOfLifeNode {
 
         let texture_bind_group = &world.resource::<GameOfLifeImageBindGroup>().0;
         let pipeline_cache = world.resource::<PipelineCache>();
-        let pipeline = world.resource::<GameOfLifePipeline>();
-    
+        let pipeline = world.resource::<GameOfLifePipeline>();    
+
+        //let game_of_life_image_write = world.resource::<GameOfLifeImageWrite>();
+        //let game_of_life_image_read = world.resource::<GameOfLifeImageRead>();
+
 
         let mut pass = render_context
             .command_encoder()
