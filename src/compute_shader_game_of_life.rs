@@ -156,8 +156,8 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
             custom_size: Some(Vec2::new(SIZE.0 as f32, SIZE.1 as f32)),
             ..default()
         },
-       // texture: image_write.clone(),
-        texture: image_read.clone(),
+        texture: image_write.clone(),
+        //texture: image_read.clone(),
         //unsure which to use write or read - but write changes often during compute
         // and should never be rendered --so it should be read i guess
         //     <<but it hangs the game
