@@ -61,7 +61,6 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     }
     let color = vec4<f32>(f32(alive));
 
-
     //i think the barrier only works for workgroups - so no good for me
     //storageBarrier();
     textureStore(texture_write, location, color);
@@ -76,7 +75,7 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
 @compute @workgroup_size(8, 8, 1)
 fn copyWriteToRead(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let location = vec2<i32>(i32(invocation_id.x), i32(invocation_id.y));
-    
+
     let write_id_value: vec4<f32> = textureLoad(texture_write, location)  ;
     textureStore(texture_read, location, write_id_value);
 

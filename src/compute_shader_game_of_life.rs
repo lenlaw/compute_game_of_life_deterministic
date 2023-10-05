@@ -55,7 +55,7 @@ fn initial_image_pixels()-> Vec<u8>{
         *dest = value;
     }
 
-    let grid_size_x = 2; // Adjust this to your desired grid size
+    let grid_size_x = 20; // Adjust this to your desired grid size
     let grid_size_y = 364; 
 
     let center_x = SIZE.0 / 2;
@@ -81,7 +81,27 @@ fn initial_image_pixels()-> Vec<u8>{
 }
 
 
+//BUG
+/*
+In Rust, when you clone a struct like Image, it performs a "shallow" copy by default. 
+This means that the fields within the struct are copied, 
+but any data referenced by those fields is not cloned. Instead, 
+references are shared between the original and cloned struct.
 
+In your code, when you clone image_write, the pixel_data_write vector is not cloned.
+ Both the original image_write and the cloned image_read will
+  share the same reference to the pixel_data_write vector.
+   Any changes made to the pixel_data_write vector will be reflected in
+    both image_write and image_read since they both reference the same data in memory.
+
+If you want to create a deep clone where the pixel_data_write vector is also cloned,
+ you would need to implement the Clone trait for the Image struct yourself
+  and ensure that the pixel_data_write field is cloned during the custom cloning process. 
+  This would involve creating a new vector with cloned data and assigning it to the
+   cloned Image struct.
+
+
+ */
 
 //note: ResMut<Assets<Image>> -- images are the assets for rendering to the screen
 //at this point i thin its empty, but we add a handle to an image to the assets
@@ -101,7 +121,19 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
         TextureFormat::Rgba8Unorm,
     );
 
-    let mut image_read  = image_write.clone();
+    let pixel_data_read = initial_image_pixels();
+    let mut image_read = Image::new(
+        Extent3d {
+            width: SIZE.0,
+            height: SIZE.1,
+            depth_or_array_layers: 1,
+        },
+        TextureDimension::D2,
+        pixel_data_read,
+        TextureFormat::Rgba8Unorm,
+    );
+
+    //let mut image_read  = image_write.clone();
   
     //gpt: the texture usages are apparently binary values ie 0b000010
     // and the | operator combines them bitwise so we might get sommet like
