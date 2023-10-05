@@ -28,7 +28,7 @@ pub fn main_gol() {
             DefaultPlugins.set(WindowPlugin {
                 primary_window: Some(Window {
                     // uncomment for unthrottled FPS
-                    // present_mode: bevy::window::PresentMode::AutoNoVsync,
+                   //  present_mode: bevy::window::PresentMode::AutoNoVsync,
                     ..default()
                 }),
                 ..default()
@@ -55,7 +55,7 @@ fn initial_image_pixels()-> Vec<u8>{
         *dest = value;
     }
 
-    let grid_size_x = 150; // Adjust this to your desired grid size
+    let grid_size_x = 2; // Adjust this to your desired grid size
     let grid_size_y = 364; 
 
     let center_x = SIZE.0 / 2;
@@ -124,8 +124,21 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
             custom_size: Some(Vec2::new(SIZE.0 as f32, SIZE.1 as f32)),
             ..default()
         },
-        texture: image_write.clone(),
-        ..default()
+       // texture: image_write.clone(),
+        texture: image_read.clone(),
+        //unsure which to use write or read - but write changes often during compute
+        // and should never be rendered --so it should be read i guess
+        //     <<but it hangs the game
+        //BUG
+        //note this is setup, but mebe the sprite spawned stays on screen thorughout
+        //so even tho its setup the updates dont kill it
+        //mebe ...ill keep it and see if i can get it working again
+        //
+        //well its not working with >>read and i dunno why
+        //it runs with write (tho not deterministic)
+        //tho it does amazingly run with mmy new pipeline pass later
+        //
+           ..default()
     });
     commands.spawn(Camera2dBundle::default());
 
@@ -145,6 +158,7 @@ pub struct GameOfLifeComputePlugin;
 
 impl Plugin for GameOfLifeComputePlugin {
     fn build(&self, app: &mut App) {
+       
         // Extract the game of life image resource from the main world into the render world
         // for operation on by the compute shader and display on the sprite.
         //        <<theres no reference tho ..how do we use this extracted resource?
@@ -152,16 +166,8 @@ impl Plugin for GameOfLifeComputePlugin {
         app.add_plugins(ExtractResourcePlugin::<GameOfLifeImageWrite>::default());
         app.add_plugins(ExtractResourcePlugin::<GameOfLifeImageRead>::default());
        
-    }
-
-
-
-    fn finish(&self, app: &mut App) {
-
 
         //so i think here we are getting the render half of the bevy engine 
-        //(as opposed to the world half that owns the resources n stuff)
-        //
         let render_app = app.sub_app_mut(RenderApp);
 
         //now we add some systems to the Render sub-app
@@ -169,20 +175,15 @@ impl Plugin for GameOfLifeComputePlugin {
         //and we add this bind group thing
         //
         //queue_bind_group.in_set(RenderSet::Queue);
-       // render_app.add_systems(, queue_bind_group.in_set(RenderSet::Queue));
-      //  render_app.add_systems(Render, queue_bind_group.in_set(RenderSet::Queue));
-        render_app.add_systems(Render, queue_bind_group.in_set(RenderSet::Prepare));
-       // render_app.add_systems(Startup, queue_bind_group.in_set(RenderSet::Queue));
-      
-
+         render_app.add_systems(Render, queue_bind_group.in_set(RenderSet::Queue));
+        //render_app.add_systems(Render, queue_bind_group.in_set(RenderSet::Prepare));
+        // render_app.add_systems(Startup, queue_bind_group.in_set(RenderSet::Queue));
         //so my guess is that the above kinda prepares an empty or default setup of the 
         //render world that can accept a bind group so i can attach a pipeline n do
         //rendering stuff??
-        //
-
+     
         //the render graph is a directed acyclic graph with the nodes dpoing render jobs
-        //and the edges ordering the nodes
-        //
+        //and the edges ordering the nodes     //
         let mut render_graph = render_app.world.resource_mut::<RenderGraph>();
 
         //this GameOfLifeNode is defined later
@@ -192,6 +193,13 @@ impl Plugin for GameOfLifeComputePlugin {
             bevy::render::main_graph::node::CAMERA_DRIVER,
         );
 
+
+
+    }
+
+
+
+    fn finish(&self, app: &mut App) {       
         let render_app = app.sub_app_mut(RenderApp);
         render_app.init_resource::<GameOfLifePipeline>();
     }
@@ -224,24 +232,31 @@ fn queue_bind_group(
     pipeline: Res<GameOfLifePipeline>,
     gpu_images: Res<RenderAssets<Image>>,
     game_of_life_image_write: Res<GameOfLifeImageWrite>,
-  //  game_of_life_image_read: Res<GameOfLifeImageRead>,
+    //game_of_life_image_read: Res<GameOfLifeImageRead>,
     render_device: Res<RenderDevice>,
 ) {
+
+    //so here im trying to copy the contents of the write into the read
+    //which mebe i do do - but then i want to re-make the read asset ready for 
+    //the next frame - which i haven't ben able to do - even if i did i am 
+    //relying on bevy to make the gpu version of it for the render world
+    //before the next frame occurs - which i have no idea if it will do
+    // i also find myself questioning whether i am messing withthe correct assets
+    //i want to be messing witht he textures - like the buffers but textures
+    //id have thought that was easier than this - can't i write diretly to the 
+    //textures since they are buffer like things - im confused
     let view_write = &gpu_images[&game_of_life_image_write.0];
-   // let view_read = &gpu_images[&game_of_life_image_read.0];
-
-
     let view_write_texture_view = &view_write.texture_view;
-    //view_read.texture_view = *view_write_data;
-
-    let view_write = &gpu_images[&game_of_life_image_write.0];
-
-    // Create a mutable copy of view_read's texture view
-    //let mut view_read_texture_view = view_read.texture_view.clone();
-
-    // Now, you can modify view_read_texture as needed
-    // For example, you can assign it the value of view_write_texture
     let view_read_texture_view = view_write_texture_view.clone();
+    //
+    //so here i'd like to make an image from the write texture and use it to add
+    //to the iamges assets thing - or do similar for the gpu_images assets
+    // 
+    //images.add()
+    //gpu_images.add();
+
+
+
 
     let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
         label: None,
@@ -256,10 +271,6 @@ fn queue_bind_group(
             
         }],
     });
-
-
-   // game_of_life_image_read.0 = gpu_images.add(Image::new(view_read_texture));
-
     commands.insert_resource(GameOfLifeImageBindGroup(bind_group));
 }
 
@@ -268,6 +279,7 @@ pub struct GameOfLifePipeline {
     texture_bind_group_layout: BindGroupLayout,
     init_pipeline: CachedComputePipelineId,
     update_pipeline: CachedComputePipelineId,
+    copy_pipeline: CachedComputePipelineId
 }
 
 impl FromWorld for GameOfLifePipeline {
@@ -309,6 +321,8 @@ impl FromWorld for GameOfLifePipeline {
         let shader = world
             .resource::<AssetServer>()
             .load("shaders/game_of_life.wgsl");
+
+
         let pipeline_cache = world.resource::<PipelineCache>();
         
         // >>init is a fn in the shader
@@ -326,15 +340,27 @@ impl FromWorld for GameOfLifePipeline {
             label: None,
             layout: vec![texture_bind_group_layout.clone()],
             push_constant_ranges: Vec::new(),
-            shader,
+            shader: shader.clone(),
             shader_defs: vec![],
             entry_point: Cow::from("update"),
         });
+
+
+        let copy_pipeline = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
+            label: None,
+            layout: vec![texture_bind_group_layout.clone()],
+            push_constant_ranges: Vec::new(),
+            shader: shader,
+            shader_defs: vec![],
+            entry_point: Cow::from("copyWriteToRead"),
+        });
+
 
         GameOfLifePipeline {
             texture_bind_group_layout,
             init_pipeline,
             update_pipeline,
+            copy_pipeline
         }
     }
 }
@@ -373,11 +399,14 @@ The run function is called for each node in the render graph in the order define
 In your case, the GameOfLifeNode represents a node in the render graph.
 The purpose of the run function is to perform rendering-related tasks, such as rendering objects or post-processing effects.
 It allows you to integrate custom rendering logic into Bevy's rendering pipeline.
-In summary, the update function is part of the ECS update loop and is called regularly for game logic, while the run function is part of Bevy's render graph and is called as part of the rendering process. These two functions serve different purposes and run in different control flows within Bevy.
+
+In summary, the update function is part of the ECS update loop and is called regularly for game logic, 
+while the run function is part of Bevy's render graph and is called as part of the rendering process.
+ These two functions serve different purposes and run in different control flows within Bevy.
 
  */
 
-
+//TODO
 //the render graph for the render half of bevy
 //theres a world half and  render half and they are separate apparently
 //
@@ -468,7 +497,30 @@ impl render_graph::Node for GameOfLifeNode {
                 }
             }
 
-            GameOfLifeState::Update => {}
+            GameOfLifeState::Update => {
+                // mebe i could put the texture copy in here?
+                // <<NOPE i think no since this >>update fires at a fixed rate ~60fps
+                //    as part of the ECS world not the render world
+                //    i want my texture copy to run before the render ops i think
+                //     or perhaps i want it to run AFTER EVERY COMPUTE
+                //     yep thats it after every compute - so the compute doesnt
+                //     read twice from a buffer thats ..umm actually it might
+                //      not matter since i think if the shader reads >>testure_read
+                //     twice without an copy tween read and write it will just write
+                //     the same thing 2x over - so its ok 
+                //     but what if the 60fps ecs runs the copy as a shader 
+                //      computes ..ahh yes that would cock things up - so 
+                //      i want the copy tex to copy after the compute whenever that occurs
+                //   the safest way i think would be to make the copy part of the pipeline
+                //    but a possible porblem there is would that update the resources
+                // a  associated with the tex in Bevy - ie doing eveything copywise on 
+                //  the gpu as part of the compute pipeline i thin would bypass bevy 
+                //    and its resources and assetss stuff  - so i dunno
+                //         <<i think in the run() below which is part of the render world
+                //          and i think i can see deals withthe compute shapder
+                //         thats probably my best bet 
+
+            }
         }
     }
 
@@ -507,12 +559,47 @@ impl render_graph::Node for GameOfLifeNode {
                 pass.set_pipeline(init_pipeline);
                 pass.dispatch_workgroups(SIZE.0 / WORKGROUP_SIZE, SIZE.1 / WORKGROUP_SIZE, 1);
             }
+
+            //ok so see here we get the pipeline from the cache
+            //so if im going to add another stage or node or step in the pass
+            //then i need to add the new step to the pipeline cache
+            //which is whereever the init and update pipelines were added in earlier code
+            //         <<here >> let update_pipeline = pipeline_cache.queue_compute_pipeline
+            //
+            //but still skethcy about copying buffers in a pipeline whilst in the Bevy framework
+            // i dunno if it misses out on making changes to things that need to be changed
+            //       like resources or assets - also even if it is ok to copy the buffers
+            // if later on i do things that update the buffers on the cpu rather than gpu
+            //  then i think then definitely ill need the copy operation cpu side 
+            //   since we cant just have the gpu doing the copying and missing out the 
+            //   the cpu ops - i think that correct to say?
+            //   
+            //but regardless her in the run() afte the compute does look like a good place to 
+            //to make the cpu-sode copy
+            //
+            //
             GameOfLifeState::Update => {
+
+                //the compute pass
                 let update_pipeline = pipeline_cache
                     .get_compute_pipeline(pipeline.update_pipeline)
-                    .unwrap();
+                    .unwrap();  
                 pass.set_pipeline(update_pipeline);
+                //pass.set_pipeline(copy_pipeline);
                 pass.dispatch_workgroups(SIZE.0 / WORKGROUP_SIZE, SIZE.1 / WORKGROUP_SIZE, 1);
+          
+
+                //the copy pass
+                //                
+                let copy_pipeline = pipeline_cache
+                    .get_compute_pipeline(pipeline.copy_pipeline)
+                    .unwrap();
+                //pass.set_pipeline(update_pipeline);
+                pass.set_pipeline(copy_pipeline);
+                pass.dispatch_workgroups(SIZE.0 / WORKGROUP_SIZE, SIZE.1 / WORKGROUP_SIZE, 1);
+          
+          
+          
             }
         }
 

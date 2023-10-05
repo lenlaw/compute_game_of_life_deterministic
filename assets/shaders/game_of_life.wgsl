@@ -1,39 +1,15 @@
 @group(0) @binding(0)
 var texture_write: texture_storage_2d<rgba8unorm, read_write>;
-
 @group(0) @binding(1)
 var texture_read: texture_storage_2d<rgba8unorm, read_write>;
-
-fn hash(value: u32) -> u32 {
-    var state = value;
-    state = state ^ 2747636419u;
-    state = state * 2654435769u;
-    state = state ^ state >> 16u;
-    state = state * 2654435769u;
-    state = state ^ state >> 16u;
-    state = state * 2654435769u;
-    return state;
-}
-
-fn randomFloat(value: u32) -> f32 {
-    return f32(hash(value)) / 4294967295.0;
-}
-
 
 //
 @compute @workgroup_size(8, 8, 1)
 fn init(@builtin(global_invocation_id) invocation_id: vec3<u32>, @builtin(num_workgroups) num_workgroups: vec3<u32>) {
-    
-      /*
-    let location = vec2<i32>(i32(invocation_id.x), i32(invocation_id.y));
-    let randomNumber = randomFloat(invocation_id.y * num_workgroups.x + invocation_id.x);
-    let alive = randomNumber > 0.9;
-    let color = vec4<f32>(f32(alive));
-   */
-        
+          
     let location = vec2<i32>(i32(invocation_id.x), i32(invocation_id.y));   
     // Use textureLoad to read the color value at the specified location
-    let loaded_color = textureLoad(texture_write, location);
+    let loaded_color = textureLoad(texture_read, location);
 
     // Check if all components of loaded_color are equal to 1.0
     let isWhite = (loaded_color.r == 1.0) && (loaded_color.g == 1.0) &&
@@ -41,28 +17,19 @@ fn init(@builtin(global_invocation_id) invocation_id: vec3<u32>, @builtin(num_wo
 
 
     if (isWhite) {        
-        let color = vec4<f32>(f32(true));
-        textureStore(texture_write, location, color);
+        let color = vec4<f32>(1.0,1.0,1.0,1.0);
+        textureStore(texture_read, location, color);
     }else{
-
-        //i went to the trouble of setting the texture elements in the image
-        // to sequences of 0,0,0,255 ...but this line just sets them all
-        // to 0 again including the alpha 
-        //    <<well it works so ill leave it
-        let color = vec4<f32>(f32(false));
-        textureStore(texture_write, location, color);
-    }
- 
-    
-  
-
-  
+      // let color = vec4<f32>(f32(false));
+        let color = vec4<f32>(0.0,0.0,0.0,1.0);
+        textureStore(texture_read, location, color);
+    }     
     
 }
 
 //
 fn is_alive(location: vec2<i32>, offset_x: i32, offset_y: i32) -> i32 {
-    let value: vec4<f32> = textureLoad(texture_write, location + vec2<i32>(offset_x, offset_y));
+    let value: vec4<f32> = textureLoad(texture_read, location + vec2<i32>(offset_x, offset_y));
     return i32(value.x);
 }
 
@@ -94,7 +61,25 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     }
     let color = vec4<f32>(f32(alive));
 
-    storageBarrier();
 
+    //i think the barrier only works for workgroups - so no good for me
+    //storageBarrier();
     textureStore(texture_write, location, color);
+     
 }
+
+//so im thinking this copies the contents of write to the contents of read all at once??
+// i now need a pipeline cpu side to execute this afte the compute shader
+// that means adding it to the pipeline cache then getting it later to add it 
+// to the pass
+//
+@compute @workgroup_size(8, 8, 1)
+fn copyWriteToRead(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
+    let location = vec2<i32>(i32(invocation_id.x), i32(invocation_id.y));
+    
+    let write_id_value: vec4<f32> = textureLoad(texture_write, location)  ;
+    textureStore(texture_read, location, write_id_value);
+
+
+}
+
