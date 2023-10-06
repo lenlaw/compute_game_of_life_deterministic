@@ -3,11 +3,11 @@ A deterministic implementation of Conway's Game Of Life using shader compute.
 
 # Description
 
-This implementation is heavily based on the [Official Bevy example of Conway's Game Of Life](https://github.com/bevyengine/bevy/blob/a31ebdc1a68c1782a18d2224133d10e889800485/examples/shader/compute_shader_game_of_life.rs). However, the official example is not Conway's Game of Life due to it being non-deterministic. In Conway's Game Of Life the following is true: 
+This implementation is heavily based on the [Official Bevy example of Conway's Game Of Life](https://github.com/bevyengine/bevy/blob/a31ebdc1a68c1782a18d2224133d10e889800485/examples/shader/compute_shader_game_of_life.rs). However, the official Bevy example is not Conway's Game of Life due to it being non-deterministic. In Conway's Game Of Life the following is true: 
 
 'The first generation is created by applying the above rules simultaneously to every cell in the seed, live or dead; births and deaths occur simultaneously, and the discrete moment at which this happens is sometimes called a tick.[nb 1] Each generation is a pure function of the preceding one. The rules continue to be applied repeatedly to create further generations.' [Conway's Game Of Life](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life#Rules)
 
-In the official example the cells of the game world are updated ad-hoc as shader invocations execute and complete in an unplanned order. This results in the game world changing with each completed execution of a shader invocation, rather than rules being applied 'simultaneously to every cell'. This results in a non-deterministic game.
+In the official Bevy example the cells of the game world are updated ad-hoc as shader invocations execute and complete in an unplanned order. This results in the game world changing with each completed execution of a shader invocation, rather than rules being applied 'simultaneously to every cell'. Consequently there is non-deterministic behaviour.
 
 This implementation uses an extra _write-texture_ to hold the changing world whilst keeping the _read-texture_ unchanged as the Conway's rules are applied. After all invocations have completed, the write-texture is copied to the _read-texture_ by an additional shader pipeline before Bevy renders the _read-texture_. 
 
