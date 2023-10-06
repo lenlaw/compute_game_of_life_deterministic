@@ -9,7 +9,7 @@ This implementation is heavily based on the [Official Bevy example of Conway's G
 
 In the official Bevy example the cells of the game world are updated ad-hoc as shader invocations execute and complete in an unplanned order. This results in the game world changing with each completed execution of a shader invocation, rather than rules being applied 'simultaneously to every cell'. Consequently there is non-deterministic behaviour.
 
-This implementation uses an extra _write-texture_ to hold the changing world whilst keeping the _read-texture_ unchanged as the Conway's rules are applied. After all invocations have completed, the write-texture is copied to the _read-texture_ by an additional shader pipeline before Bevy renders the _read-texture_. 
+This implementation uses an extra _write-texture_ to hold the changing world whilst keeping the _read-texture_ unchanged as the Conway's rules are applied. After all invocations have completed, the write-texture is copied to the _read-texture_ by an additional shader pipeline before Bevy renders the game world.
 
 An additional minor change has been made to the initial conditions for the game. The official example sets cells as live or dead using a random shader function. This implementation replaces the random initialisation with a simple block of live cells. The block allows for the confirmation of determinisism in the game, as the same initial conditions can be seen to produce the same outcomes. 
 
