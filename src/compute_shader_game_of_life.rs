@@ -77,35 +77,7 @@ fn initial_image_pixels()-> Vec<u8>{
 
 }
 
-
-//BUG
-/*
-In Rust, when you clone a struct like Image, it performs a "shallow" copy by default. 
-This means that the fields within the struct are copied, 
-but any data referenced by those fields is not cloned. Instead, 
-references are shared between the original and cloned struct.
-
-In your code, when you clone image_write, the pixel_data_write vector is not cloned.
- Both the original image_write and the cloned image_read will
-  share the same reference to the pixel_data_write vector.
-   Any changes made to the pixel_data_write vector will be reflected in
-    both image_write and image_read since they both reference the same data in memory.
-
-If you want to create a deep clone where the pixel_data_write vector is also cloned,
- you would need to implement the Clone trait for the Image struct yourself
-  and ensure that the pixel_data_write field is cloned during the custom cloning process. 
-  This would involve creating a new vector with cloned data and assigning it to the
-   cloned Image struct.
-
-
- */
-
-//note: ResMut<Assets<Image>> -- images are the assets for rendering to the screen
-//at this point i thin its empty, but we add a handle to an image to the assets
-// in setup
-//
-fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {   
-    //get a vec<u8> to populate the image pixel field with
+fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {      
     let pixel_data_write = initial_image_pixels();
     let mut image_write = Image::new(
         Extent3d {
@@ -130,11 +102,8 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
         TextureFormat::Rgba8Unorm,
     );
 
-    //let mut image_read  = image_write.clone();
-  
-    //gpt: the texture usages are apparently binary values ie 0b000010
-    // and the | operator combines them bitwise so we might get sommet like
-    // 0b 000111 of each has just a single 1 in the respective positions
+    //let mut image_read  = image_write.clone();  
+   
     image_read.texture_descriptor.usage =
     TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
     image_write.texture_descriptor.usage =
@@ -143,42 +112,17 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
 
     let image_write = images.add(image_write);
     let image_read = images.add(image_read);
-   
-    //is the >>texture here the texture bound to the shader??
-    //      <<i doubt it. This copies the texture to spawn it to the screen it guess
-    // i thik it renders to screen before any shader code has executed
-    // it just shows that preset intial condition for the game
-    //   i think more than just a splash thing - doesnt run if i use the readImage dunno why
-    //
+       
     commands.spawn(SpriteBundle {
         sprite: Sprite {
             custom_size: Some(Vec2::new(SIZE.0 as f32, SIZE.1 as f32)),
             ..default()
         },
-        texture: image_write.clone(),
-        //texture: image_read.clone(),
-        //unsure which to use write or read - but write changes often during compute
-        // and should never be rendered --so it should be read i guess
-        //     <<but it hangs the game
-        //BUG
-        //note this is setup, but mebe the sprite spawned stays on screen thorughout
-        //so even tho its setup the updates dont kill it
-        //mebe ...ill keep it and see if i can get it working again
-        //
-        //well its not working with >>read and i dunno why
-        //it runs with write (tho not deterministic)
-        //tho it does amazingly run with mmy new pipeline pass later
-        //
+        texture: image_write.clone(),       
            ..default()
     });
     commands.spawn(Camera2dBundle::default());
 
-    //so here we insert a resource into bevy 
-    //this resource will be extracted from the bevy main world into the render
-    //word below suing ExtractResoure
-    //the resource is a handle to the image 
-    //   
-    //
     commands.insert_resource(GameOfLifeImageWrite(image_write));
     commands.insert_resource(GameOfLifeImageRead(image_read));
 }
@@ -191,14 +135,12 @@ impl Plugin for GameOfLifeComputePlugin {
     fn build(&self, app: &mut App) {
        
         // Extract the game of life image resource from the main world into the render world
-        // for operation on by the compute shader and display on the sprite.
-        //        <<theres no reference tho ..how do we use this extracted resource?
-        //
+        // for operation on by the compute shader and display on the sprite.       
         app.add_plugins(ExtractResourcePlugin::<GameOfLifeImageWrite>::default());
         app.add_plugins(ExtractResourcePlugin::<GameOfLifeImageRead>::default());
        
 
-        //so i think here we are getting the render half of the bevy engine 
+        //getting the render world of the bevy engine 
         let render_app = app.sub_app_mut(RenderApp);
 
         //now we add some systems to the Render sub-app

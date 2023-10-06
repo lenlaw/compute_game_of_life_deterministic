@@ -19,8 +19,7 @@ fn init(@builtin(global_invocation_id) invocation_id: vec3<u32>, @builtin(num_wo
     }else{    
         let color = vec4<f32>(0.0,0.0,0.0,1.0);
         textureStore(texture_read, location, color);
-    }     
-    
+    }         
 }
 
 fn is_alive(location: vec2<i32>, offset_x: i32, offset_y: i32) -> i32 {
