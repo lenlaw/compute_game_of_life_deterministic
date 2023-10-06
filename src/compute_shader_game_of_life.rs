@@ -269,26 +269,9 @@ fn queue_bind_group(
     game_of_life_image_read: Res<GameOfLifeImageRead>,
     render_device: Res<RenderDevice>,
 ) {
-  
-    //so here im trying to copy the contents of the write into the read
-    //which mebe i do do - but then i want to re-make the read asset ready for 
-    //the next frame - which i haven't ben able to do - even if i did i am 
-    //relying on bevy to make the gpu version of it for the render world
-    //before the next frame occurs - which i have no idea if it will do
-    // i also find myself questioning whether i am messing withthe correct assets
-    //i want to be messing witht he textures - like the buffers but textures
-    //id have thought that was easier than this - can't i write diretly to the 
-    //textures since they are buffer like things - im confused
- */
+     
     let view_write = &gpu_images[&game_of_life_image_write.0];
-    let view_read = &gpu_images[&game_of_life_image_read.0];
-   
-    //so here i'd like to make an image from the write texture and use it to add
-    //to the iamges assets thing - or do similar for the gpu_images assets
-    // 
-    //images.add()
-    //gpu_images.add();
- */
+    let view_read = &gpu_images[&game_of_life_image_read.0];   
 
     let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
         label: None,
@@ -298,7 +281,7 @@ fn queue_bind_group(
                 binding: 0,
                 resource: BindingResource::TextureView(&view_write.texture_view)},
             BindGroupEntry {
-                binding: 1, // Use the appropriate binding index
+                binding: 1,
                 resource: BindingResource::TextureView(&view_read.texture_view),
             
         }],
