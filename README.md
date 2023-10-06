@@ -11,7 +11,7 @@ In the official Bevy example the cells of the game world are updated ad-hoc as s
 
 This implementation uses an extra _write-texture_ to hold the changing world whilst keeping the _read-texture_ unchanged as the Conway's rules are applied. After all invocations have completed, the write-texture is copied to the _read-texture_ by an additional shader pipeline before Bevy renders the game world.
 
-An additional minor change has been made to the initial conditions for the game. The official example sets cells as live or dead using a random shader function. This implementation replaces the random initialisation with a simple block of live cells. The block allows for the confirmation of determinisism in the game, as the same initial conditions can be seen to produce the same outcomes. 
+An additional minor change has been made to the initial conditions for the game. The official example sets cells as live or dead using a random shader function. This implementation replaces the random initialisation with a simple block of live cells. The block allows for the confirmation of determinism in the game, as the same initial conditions can be seen to produce the same outcomes. Nontheless, the game generates a pleasing evolution.
 
 ## License
 
