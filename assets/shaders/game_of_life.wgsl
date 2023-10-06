@@ -61,7 +61,7 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     }
     let color = vec4<f32>(f32(alive));
 
-    //i think the barrier only works for workgroups - so no good for me
+    //i think the barrier only works for workgroups
     //storageBarrier();
     textureStore(texture_write, location, color);
      
