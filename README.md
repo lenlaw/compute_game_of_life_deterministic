@@ -7,6 +7,10 @@ This implementation is heavily based on the [Official Bevy example of Conway's G
 
 'The first generation is created by applying the above rules simultaneously to every cell in the seed, live or dead; births and deaths occur simultaneously, and the discrete moment at which this happens is sometimes called a tick.[nb 1] Each generation is a pure function of the preceding one. The rules continue to be applied repeatedly to create further generations.' [Conway's Game Of Life](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life#Rules)
 
+In the official example the cells of the game world are updated ad-hoc as shader invocations execute and complete in an unplanned order. This results in the game world changing with each completed execution of a shader invocation, rather than rules being applied 'simultaneously to every cell'. 
+
+This implementation uses an extra _write-texture_ to hold the changing world whilst keeping 
+
 ## License
 
 Bevy is free, open source and permissively licensed!
