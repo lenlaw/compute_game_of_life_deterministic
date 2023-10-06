@@ -39,8 +39,6 @@ pub fn main_gol() {
         .run();
 }
 
-//note this doesnt make the black pixels opaque
-//  ie all the balck are alpha 0 whereas in the orginal code they are alpha 255
 fn initial_image_pixels()-> Vec<u8>{
 
     //const SIZE: (u32, u32) = (1280, 720);
@@ -55,14 +53,13 @@ fn initial_image_pixels()-> Vec<u8>{
         *dest = value;
     }
 
-    let grid_size_x = 20; // Adjust this to your desired grid size
-    let grid_size_y = 364; 
+    let grid_size_x = 364; // Adjust this to your desired grid size
+    let grid_size_y = 124; 
 
     let center_x = SIZE.0 / 2;
     let center_y = SIZE.1 / 2;
     let start_x = center_x - grid_size_x / 2;   
     let start_y = center_y - grid_size_y / 2;
-
     let end_x = start_x + grid_size_x;
     let end_y = start_y + grid_size_y;
 
