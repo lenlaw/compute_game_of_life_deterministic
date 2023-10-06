@@ -1,6 +1,11 @@
 # compute_game_of_life_deterministic
 A deterministic implementation of Conway's Game Of Life using shader compute.
 
+# Description
+
+This implementation is heavily based on the Official Bevy example of Conway's Game Of Life https://github.com/bevyengine/bevy/blob/a31ebdc1a68c1782a18d2224133d10e889800485/examples/shader/compute_shader_game_of_life.rs
+
+
 
 ## License
 
