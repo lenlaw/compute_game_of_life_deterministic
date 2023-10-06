@@ -67,18 +67,11 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
      
 }
 
-//so im thinking this copies the contents of write to the contents of read all at once??
-// i now need a pipeline cpu side to execute this afte the compute shader
-// that means adding it to the pipeline cache then getting it later to add it 
-// to the pass
-//
 @compute @workgroup_size(8, 8, 1)
 fn copyWriteToRead(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let location = vec2<i32>(i32(invocation_id.x), i32(invocation_id.y));
 
     let write_id_value: vec4<f32> = textureLoad(texture_write, location)  ;
     textureStore(texture_read, location, write_id_value);
-
-
 }
 
