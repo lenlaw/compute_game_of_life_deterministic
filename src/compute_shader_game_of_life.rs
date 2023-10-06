@@ -138,10 +138,11 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     //gpt: the texture usages are apparently binary values ie 0b000010
     // and the | operator combines them bitwise so we might get sommet like
     // 0b 000111 of each has just a single 1 in the respective positions
-    image_write.texture_descriptor.usage =
-        TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING; 
     image_read.texture_descriptor.usage =
     TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
+    image_write.texture_descriptor.usage =
+        TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING; 
+    
 
     let image_write = images.add(image_write);
     let image_read = images.add(image_read);
@@ -150,6 +151,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     //      <<i doubt it. This copies the texture to spawn it to the screen it guess
     // i thik it renders to screen before any shader code has executed
     // it just shows that preset intial condition for the game
+    //   i think more than just a splash thing - doesnt run if i use the readImage dunno why
     //
     commands.spawn(SpriteBundle {
         sprite: Sprite {
@@ -264,10 +266,10 @@ fn queue_bind_group(
     pipeline: Res<GameOfLifePipeline>,
     gpu_images: Res<RenderAssets<Image>>,
     game_of_life_image_write: Res<GameOfLifeImageWrite>,
-    //game_of_life_image_read: Res<GameOfLifeImageRead>,
+    game_of_life_image_read: Res<GameOfLifeImageRead>,
     render_device: Res<RenderDevice>,
 ) {
-
+  
     //so here im trying to copy the contents of the write into the read
     //which mebe i do do - but then i want to re-make the read asset ready for 
     //the next frame - which i haven't ben able to do - even if i did i am 
@@ -277,18 +279,16 @@ fn queue_bind_group(
     //i want to be messing witht he textures - like the buffers but textures
     //id have thought that was easier than this - can't i write diretly to the 
     //textures since they are buffer like things - im confused
+ */
     let view_write = &gpu_images[&game_of_life_image_write.0];
-    let view_write_texture_view = &view_write.texture_view;
-    let view_read_texture_view = view_write_texture_view.clone();
-    //
+    let view_read = &gpu_images[&game_of_life_image_read.0];
+   
     //so here i'd like to make an image from the write texture and use it to add
     //to the iamges assets thing - or do similar for the gpu_images assets
     // 
     //images.add()
     //gpu_images.add();
-
-
-
+ */
 
     let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
         label: None,
@@ -299,7 +299,7 @@ fn queue_bind_group(
                 resource: BindingResource::TextureView(&view_write.texture_view)},
             BindGroupEntry {
                 binding: 1, // Use the appropriate binding index
-                resource: BindingResource::TextureView(&view_read_texture_view),
+                resource: BindingResource::TextureView(&view_read.texture_view),
             
         }],
     });
@@ -468,49 +468,7 @@ impl render_graph::Node for GameOfLifeNode {
         //  can be used to retrieve the actual GPU object once it's ready.
         let pipeline_cache = world.resource::<PipelineCache>();
 
-     
-/*     
-     //  let game_of_life_image_write = world.resource::<GameOfLifeImageWrite>().0.clone();  
-      //  world.insert_resource(GameOfLifeImageRead(game_of_life_image_write));
-
-       // let game_of_life_image_read = *game_of_life_image_write; // Dereference to get the Handle directly
-      //  world.insert_resource(GameOfLifeImageRead(game_of_life_image_write));
-
-  //let gpu_images = &world.resource::<RenderAssets<Image>>();
-       // let game_of_life_image_write = &world.resource::<GameOfLifeImageWrite>();
-        //let game_of_life_image_read = &world.get_resource_mut::<GameOfLifeImageRead>();
-  //let game_of_life_image_read = &world.resource::<GameOfLifeImageRead>().0;
- //  world.get_resource_or_insert_with( ||GameOfLifeImageRead(*game_of_life_image_write));
-
-        //let image_write = &gpu_images[&game_of_life_image_write.0];
-        //let image_write = gpu_images.get(&game_of_life_image_write.0).unwrap();    
-
-       // let image_write_texture = image_write.texture;
-       //commands.insert_resource(GameOfLifeImageRead(image_write));
-
-  //  let images = world.resource::<Assets<Image>>();
-     //  let image_write = images.get(&game_of_life_image_write).unwrap();
-     //  let image_write_clone = image_write.clone();
-    //   let image_write_h = images.add(image_write_clone);
-      //  let image_write_clone = image_write.clone();
-      //  let image_read = &gpu_images[&game_of_life_image_read.0];
-
-       // let image_read_handle =  &gpu_images[&game_of_life_image_read];
-
-       // use bevy::render::render_resource::TextureView as bevyTex;  
-        //let image_write_texture_view:  bevyTex = *image_write.texture_view as bevyTex;
-       // let image_write_texture_view:  bevyTex = *image_write.texture_view ;
-
-       // use bevy_render::render_resource::Texture::TextureView;   
-       // let image_write_texture_view: TextureView = *image_write_texture_view ;    
-
-        //let image_read = &gpu_images[&game_of_life_image_read.0];
-        //let view_read_clone = image_read.clone();
-      //  let mut view_read_clone_texture_view = view_read_clone.texture_view; 
-     //   view_read_clone_texture_view = image_write_texture_view;
-
- */
-
+  
         // if the corresponding pipeline has loaded, transition to the next stage
         match self.state {
             GameOfLifeState::Loading => {
@@ -530,6 +488,7 @@ impl render_graph::Node for GameOfLifeNode {
             }
 
             GameOfLifeState::Update => {
+              /* 
                 // mebe i could put the texture copy in here?
                 // <<NOPE i think no since this >>update fires at a fixed rate ~60fps
                 //    as part of the ECS world not the render world
@@ -551,7 +510,7 @@ impl render_graph::Node for GameOfLifeNode {
                 //         <<i think in the run() below which is part of the render world
                 //          and i think i can see deals withthe compute shapder
                 //         thats probably my best bet 
-
+*/
             }
         }
     }
@@ -567,11 +526,7 @@ impl render_graph::Node for GameOfLifeNode {
 
         let texture_bind_group = &world.resource::<GameOfLifeImageBindGroup>().0;
         let pipeline_cache = world.resource::<PipelineCache>();
-        let pipeline = world.resource::<GameOfLifePipeline>();    
-
-        //let game_of_life_image_write = world.resource::<GameOfLifeImageWrite>();
-        //let game_of_life_image_read = world.resource::<GameOfLifeImageRead>();
-
+        let pipeline = world.resource::<GameOfLifePipeline>();         
 
         let mut pass = render_context
             .command_encoder()
@@ -591,7 +546,7 @@ impl render_graph::Node for GameOfLifeNode {
                 pass.set_pipeline(init_pipeline);
                 pass.dispatch_workgroups(SIZE.0 / WORKGROUP_SIZE, SIZE.1 / WORKGROUP_SIZE, 1);
             }
-
+/* 
             //ok so see here we get the pipeline from the cache
             //so if im going to add another stage or node or step in the pass
             //then i need to add the new step to the pipeline cache
@@ -609,29 +564,22 @@ impl render_graph::Node for GameOfLifeNode {
             //but regardless her in the run() afte the compute does look like a good place to 
             //to make the cpu-sode copy
             //
-            //
+            */
             GameOfLifeState::Update => {
-
                 //the compute pass
                 let update_pipeline = pipeline_cache
                     .get_compute_pipeline(pipeline.update_pipeline)
                     .unwrap();  
                 pass.set_pipeline(update_pipeline);
-                //pass.set_pipeline(copy_pipeline);
                 pass.dispatch_workgroups(SIZE.0 / WORKGROUP_SIZE, SIZE.1 / WORKGROUP_SIZE, 1);
           
-
-                //the copy pass
-                //                
+                //the copy pass                      
                 let copy_pipeline = pipeline_cache
                     .get_compute_pipeline(pipeline.copy_pipeline)
-                    .unwrap();
-                //pass.set_pipeline(update_pipeline);
+                    .unwrap();               
                 pass.set_pipeline(copy_pipeline);
                 pass.dispatch_workgroups(SIZE.0 / WORKGROUP_SIZE, SIZE.1 / WORKGROUP_SIZE, 1);
-          
-          
-          
+           
             }
         }
 
